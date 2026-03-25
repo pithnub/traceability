@@ -2,51 +2,33 @@ import streamlit as st
 import pandas as pd
 import pydeck as pdk
 import numpy as np
+from datetime import datetime
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 import qrcode
 from io import BytesIO
-from datetime import datetime
 
-# --- 1. CONFIG & STYLING (THEME-PROOFED) ---
-st.set_page_config(page_title="LASRA | KinetiCore EUDR", layout="wide", page_icon="🇳🇿")
+# --- 1. CONFIG & STYLING ---
+st.set_page_config(page_title="LASRA | EUDR Solutions", layout="wide", page_icon="🇳🇿")
 
-# Forced High-Contrast CSS
 st.markdown("""
     <style>
-    /* Force metrics to have a white background and dark text regardless of theme */
-    [data-testid="stMetricValue"] {
-        background-color: #ffffff !important;
-        color: #0A369D !important;
-        padding: 10px;
-        border-radius: 5px;
-        border: 1px solid #e1e8ed;
+    /* High-contrast metrics for readability */
+    [data-testid="stMetricValue"] { background-color: #ffffff !important; color: #004a99 !important; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6; }
+    [data-testid="stMetricLabel"] { color: #1e293b !important; font-weight: 700 !important; text-transform: uppercase; }
+    
+    .main { background-color: #f8fafc; }
+    h1, h2, h3 { color: #004a99 !important; font-weight: 900 !important; }
+    
+    .anti-panic { 
+        background-color: #fffde7; 
+        padding: 20px; 
+        border-radius: 8px; 
+        border-left: 6px solid #fbc02d;
+        margin: 20px 0;
     }
-    [data-testid="stMetricLabel"] {
-        color: #1e293b !important;
-        font-weight: 700 !important;
-        text-transform: uppercase;
-    }
-    /* Ensure the Map Label is always visible */
-    .map-header {
-        background-color: #0A369D;
-        color: white !important;
-        padding: 10px 15px;
-        border-radius: 5px;
-        font-weight: 900;
-        text-transform: uppercase;
-        margin-top: 20px;
-        margin-bottom: 10px;
-        display: inline-block;
-    }
-    .bold-label {
-        font-weight: 900;
-        color: #0A369D !important;
-        text-transform: uppercase;
-        font-size: 0.9rem;
-        display: block;
-        margin-bottom: 10px;
-    }
+    .bold-label { font-weight: 900 !important; color: #004a99 !important; text-transform: uppercase; font-size: 0.85rem; display: block; margin-bottom: 10px; }
+    .stButton>button { background: linear-gradient(90deg, #004a99 0%, #055fbe 100%); color: white; font-weight: bold; border: none; border-radius: 8px; height: 3.5em; transition: 0.3s; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -54,124 +36,114 @@ st.markdown("""
 def generate_eudr_passport(batch_id, total_hides, farm_df):
     pdf = FPDF()
     pdf.add_page()
-    qr = qrcode.QRCode(box_size=10)
-    qr.add_data(f"https://lasra.co.nz/verify/{batch_id}")
-    qr.make(fit=True)
-    img_qr = qr.make_image(fill_color="black", back_color="white")
-    qr_buffer = BytesIO()
-    img_qr.save(qr_buffer, format="PNG")
-    qr_buffer.seek(0)
-
     pdf.set_fill_color(0, 74, 153)
     pdf.rect(0, 0, 210, 45, 'F')
     pdf.set_font("Helvetica", 'B', 22)
     pdf.set_text_color(255, 255, 255)
-    pdf.set_y(15)
-    pdf.cell(0, 10, "EUDR TRACEABILITY PASSPORT", align='L', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.image(qr_buffer, x=165, y=5, w=35)
+    pdf.cell(0, 25, "EUDR TRACEABILITY PASSPORT", align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     
     pdf.set_y(55)
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Helvetica", 'B', 12)
     pdf.cell(0, 10, f"Batch Reference: {batch_id}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("Helvetica", '', 11)
-    pdf.cell(0, 8, f"Total Volume: {total_hides:,} Hides", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.set_font("Helvetica", 'B', 11)
-    pdf.set_text_color(0, 100, 0)
-    pdf.cell(0, 8, "EUDR RISK STATUS: NEGLIGIBLE (New Zealand Origin)", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 8, f"Export Volume: {total_hides} Hides", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 8, f"Verification Date: {datetime.now().strftime('%d %B %Y')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     
-    pdf.set_text_color(0, 0, 0)
     pdf.line(10, 85, 200, 85)
     pdf.set_y(90)
-    pdf.set_font("Helvetica", 'B', 11)
-    pdf.cell(0, 10, "Verified Origin Points (Biological Data Set):", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.set_font("Helvetica", 'B', 12)
+    pdf.cell(0, 10, "Verified Geolocation Origin Points:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     
-    pdf.set_font("Courier", '', 8)
-    for _, row in farm_df.iterrows():
-        if pdf.get_y() > 265:
-            pdf.add_page()
-            pdf.set_y(20)
-        origin_str = f"- Farm ID: {row['farm_id']:<12} | Lat: {row['latitude']:>8.4f} | Long: {row['longitude']:>8.4f} | Vol: {row['region_vol']:>4}"
-        pdf.cell(0, 5, origin_str, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-
-    pdf.set_y(275)
-    pdf.set_font("Helvetica", 'I', 7)
+    pdf.set_font("Helvetica", '', 10)
+    unique_origins = farm_df.drop_duplicates(subset=['farm_id']).head(25)
+    for _, row in unique_origins.iterrows():
+        geo_str = f"Origin: {row['farm_id']} | Lat: {row['latitude']:.5f}, Long: {row['longitude']:.5f}"
+        pdf.cell(0, 7, f"- {geo_str}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    
+    qr_data = f"https://lasra.co.nz/verify?batch={batch_id}"
+    qr = qrcode.make(qr_data)
+    img_buffer = BytesIO()
+    qr.save(img_buffer, format="PNG")
+    img_buffer.seek(0)
+    
+    pdf.image(img_buffer, x=155, y=235, w=35)
+    pdf.set_y(245)
+    pdf.set_font("Helvetica", 'B', 8)
     pdf.set_text_color(100, 100, 100)
-    statement = ("VERIFICATION STATEMENT: Origin points cross-referenced against NZ National Land Cover database. "
-                 "Zero deforestation activity detected post-Dec 31, 2020. Compliant with EUDR 2023/1115.")
-    pdf.multi_cell(0, 4, statement, align='C')
+    statement = ("COMPLIANCE STATEMENT: This shipment is verified against NZ National Land Cover data. "
+                 "All sources cleared of deforestation activity post-Dec 31, 2020 (EUDR 2023/1115).")
+    pdf.multi_cell(140, 4, statement)
+    
     return bytes(pdf.output())
 
-# --- 3. DATA LOADING ---
-def load_verified_data():
-    st.session_state.lims_data = pd.DataFrame({
-        "batch_id": ["KINETIC-2026-ALPHA"], "meatworks_ref": ["MW-NZ-CORE"], "hide_count": [3500]
-    })
-    n_farms = 35
-    lats, longs = [], []
-    for _ in range(n_farms):
-        if np.random.rand() > 0.4:
-            lats.append(np.random.uniform(-38.3, -37.5))
-            longs.append(np.random.uniform(175.2, 175.9))
-        else:
-            lats.append(np.random.uniform(-44.0, -43.3))
-            longs.append(np.random.uniform(171.8, 172.5))
+# --- 3. APP HEADER ---
+st.title("🛰️ LASRA: Bridging the EUDR 'Data Divide'")
+st.markdown("New Zealand leather is inherently low-risk. This tool provides the **digital proof**.")
 
+# --- 4. DATA INTAKE ---
+if st.button("✨ Load Distributed NZ Data (Simulation Mode)"):
+    # Create spread-out data for the map
+    n_farms = 30
+    lats = np.concatenate([np.random.uniform(-38.5, -37.5, 20), np.random.uniform(-44.0, -43.0, 10)])
+    longs = np.concatenate([np.random.uniform(175.2, 175.9, 20), np.random.uniform(171.8, 172.5, 10)])
+    
+    st.session_state.lims_data = pd.DataFrame({
+        "batch_id": ["WB-2026-NZ-ALPHA"], "meatworks_ref": ["MW-NZ-CORE"], "hide_count": [3200]
+    })
     st.session_state.farm_data = pd.DataFrame({
         "meatworks_ref": ["MW-NZ-CORE"] * n_farms,
-        "farm_id": [f"NZ-L-{i:03d}" for i in range(1, n_farms + 1)],
-        "latitude": lats, "longitude": longs,
-        "region_vol": np.random.randint(40, 180, size=n_farms)
+        "farm_id": [f"FARM-{i:02d}" for i in range(n_farms)],
+        "latitude": lats, "longitude": longs
     })
 
-# --- 4. APP UI ---
-st.title("🛰️ LASRA KinetiCore Traceability")
-st.write("Forensic geospatial verification for EUDR compliance.")
-
-if st.button("✨ Load Verified NZ Data (Simulation)"):
-    load_verified_data()
-
 if 'lims_data' not in st.session_state:
-    st.session_state.lims_data = pd.DataFrame({"batch_id": ["REF-01"], "meatworks_ref": ["MW-01"], "hide_count": [1000]})
+    st.session_state.lims_data = pd.DataFrame({"batch_id": ["WB-BATCH-01"], "meatworks_ref": ["MW-REF-01"], "hide_count": [1000]})
 if 'farm_data' not in st.session_state:
-    st.session_state.farm_data = pd.DataFrame({"meatworks_ref": ["MW-01"], "farm_id": ["F-01"], "latitude": [-37.8], "longitude": [175.4], "region_vol": [1000]})
+    st.session_state.farm_data = pd.DataFrame({"meatworks_ref": ["MW-REF-01"], "farm_id": ["FARM-01"], "latitude": [-38.0], "longitude": [175.5]})
 
-col1, col2 = st.columns(2)
-with col1:
-    st.markdown("<span class='bold-label'>LIMS Export Data</span>", unsafe_allow_html=True)
-    df_lims = st.data_editor(st.session_state.lims_data, num_rows="dynamic", key="lims_v9")
-with col2:
-    st.markdown("<span class='bold-label'>Farm Origin Manifest</span>", unsafe_allow_html=True)
-    df_manifest = st.data_editor(st.session_state.farm_data, num_rows="dynamic", key="farm_v9")
+col_ed1, col_ed2 = st.columns(2)
+with col_ed1:
+    st.markdown("<span class='bold-label'>Tannery LIMS Output</span>", unsafe_allow_html=True)
+    df_lims = st.data_editor(st.session_state.lims_data, num_rows="dynamic", key="lims_v10")
+with col_ed2:
+    st.markdown("<span class='bold-label'>Meat Works Origin Evidence</span>", unsafe_allow_html=True)
+    df_manifest = st.data_editor(st.session_state.farm_data, num_rows="dynamic", key="farm_v10")
 
-if st.button("🚀 EXECUTE COMPLIANCE AUDIT"):
-    df_lims['meatworks_ref'] = df_lims['meatworks_ref'].astype(str).str.strip()
-    df_manifest['meatworks_ref'] = df_manifest['meatworks_ref'].astype(str).str.strip()
-    enriched = pd.merge(df_lims, df_manifest, on="meatworks_ref", how="left")
-    
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Verified Hides", f"{enriched['hide_count'].iloc[0]:,}")
-    m2.metric("Origin Farm Points", enriched['farm_id'].nunique())
-    m3.metric("EUDR Risk Status", "NEGLIGIBLE", delta="NZ Improved Pasture")
+# --- 6. EXECUTION ---
+st.markdown("---")
+if st.button("🚀 EXECUTE COMPLIANCE CHECK"):
+    try:
+        enriched_data = pd.merge(df_lims, df_manifest, on="meatworks_ref", how="left")
+        total_hides = enriched_data['hide_count'].sum()
+        
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Verified Volume", f"{total_hides:,} Hides")
+        m2.metric("Origin Farm Count", enriched_data['farm_id'].nunique())
+        m3.metric("EUDR Risk Status", "NEGLIGIBLE (NZ)")
 
-    # Map Header with forced visibility
-    st.markdown('<div class="map-header">Geospatial Verification Map</div>', unsafe_allow_html=True)
-    
-    view_state = pdk.ViewState(latitude=-40.5, longitude=174.5, zoom=5.2, pitch=45)
-    st.pydeck_chart(pdk.Deck(
-        initial_view_state=view_state,
-        map_style='mapbox://styles/mapbox/light-v10', # Switched to LIGHT style for better readability
-        layers=[
-            pdk.Layer(
-                "ColumnLayer", enriched, get_position='[longitude, latitude]',
-                get_elevation='region_vol', elevation_scale=600, radius=12000,
-                get_fill_color=[0, 74, 153, 180], pickable=True, extruded=True,
-            )
-        ],
-        tooltip={"text": "Origin ID: {farm_id}\nVolume: {region_vol} hides"}
-    ))
+        st.markdown("<span class='bold-label'>Geospatial Plot of Land Verification</span>", unsafe_allow_html=True)
+        
+        # --- FIXED MAP SECTION ---
+        view_state = pdk.ViewState(latitude=-41.0, longitude=174.0, zoom=5.5, pitch=45)
+        layer = pdk.Layer(
+            "ColumnLayer", enriched_data, get_position='[longitude, latitude]',
+            get_elevation='hide_count / 10', # Scaled for visibility
+            elevation_scale=500, radius=12000,
+            get_fill_color=[0, 74, 153, 200], pickable=True, extruded=True
+        )
+        
+        # Explicitly using a light style to ensure tile visibility without a token
+        st.pydeck_chart(pdk.Deck(
+            map_style='mapbox://styles/mapbox/light-v10',
+            layers=[layer], 
+            initial_view_state=view_state,
+            tooltip={"text": "Origin: {farm_id}\nBatch: {batch_id}"}
+        ))
 
-    pdf_bytes = generate_eudr_passport(enriched['batch_id'].iloc[0], enriched['hide_count'].iloc[0], enriched)
-    st.download_button("📄 DOWNLOAD TRACEABILITY PASSPORT", data=pdf_bytes, 
-                       file_name=f"LASRA_Passport_{datetime.now().strftime('%Y%m%d')}.pdf", 
-                       mime="application/pdf", use_container_width=True)
+        st.divider()
+        pdf_bytes = generate_eudr_passport(enriched_data['batch_id'].iloc[0], total_hides, enriched_data)
+        st.download_button("📄 DOWNLOAD DIGITAL TRACEABILITY PASSPORT", data=pdf_bytes, file_name="LASRA_Passport.pdf", mime="application/pdf", use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Execution Error: {e}")
