@@ -90,7 +90,7 @@ def load_audit_data():
     n_farms = 45
     lats = np.concatenate([np.random.uniform(-38.3, -37.5, 30), np.random.uniform(-44.0, -43.3, 15)])
     longs = np.concatenate([np.random.uniform(175.2, 175.9, 30), np.random.uniform(171.8, 172.5, 15)])
-    st.session_state.lims_data = pd.DataFrame({"batch_id": ["APLF-2026-NZ-ALPHA"], "meatworks_ref": ["MW-NZ-CORE"], "hide_count": [4500]})
+    st.session_state.lims_data = pd.DataFrame({"batch_id": ["2026-NZ-ALPHA"], "meatworks_ref": ["MW-NZ-CORE"], "hide_count": [4500]})
     st.session_state.farm_data = pd.DataFrame({
         "meatworks_ref": ["MW-NZ-CORE"] * n_farms,
         "farm_id": [f"NZ-L-{i:03d}" for i in range(1, n_farms + 1)],
