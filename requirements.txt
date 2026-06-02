@@ -1,5 +1,8 @@
 streamlit
 pandas
 pydeck
+numpy
+pytz
 fpdf2
 qrcode
+pillow
